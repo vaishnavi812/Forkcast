@@ -1,0 +1,400 @@
+<title>Forkcast</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=DM+Sans:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* Layout: settings rail beside a week table (rows = days, columns = meals); groceries on a second tab. */
+:root{
+  --bg:#F3F6F4; --surface:#FFFFFF; --ink:#16241F; --muted:#5D6F68; --line:#D9E2DD;
+  --accent:#1F7A56; --accent-ink:#FFFFFF; --accent-soft:#DDF0E6; --warm:#C9731C; --warm-soft:#FBE9D3; --bad:#B3392F;
+  --f-display:"Bricolage Grotesque","Helvetica Neue",Arial,sans-serif;
+  --f-body:"DM Sans","Helvetica Neue",Arial,sans-serif;
+  --f-mono:"DM Mono",ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0F1A16; --surface:#16251F; --ink:#E6F0EB; --muted:#93A89F; --line:#26382F;
+  --accent:#4FC08D; --accent-ink:#08150F; --accent-soft:#1B3A2C; --warm:#E8A255; --warm-soft:#3A2A15; --bad:#F0877E; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0F1A16; --surface:#16251F; --ink:#E6F0EB; --muted:#93A89F; --line:#26382F;
+  --accent:#4FC08D; --accent-ink:#08150F; --accent-soft:#1B3A2C; --warm:#E8A255; --warm-soft:#3A2A15; --bad:#F0877E; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font:15px/1.45 var(--f-body);padding-block:20px 48px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.wrap{max-width:1240px;margin:0 auto}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+header{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px 24px;margin-bottom:20px}
+h1{font:700 clamp(28px,4vw,40px)/1 var(--f-display);letter-spacing:-.02em;margin:0}
+h1 span{color:var(--accent)}
+.sub{color:var(--muted);margin:6px 0 0}
+.stats{display:flex;flex-wrap:wrap;gap:8px 24px}
+.stat b{display:block;font:500 20px var(--f-mono);font-variant-numeric:tabular-nums}
+.stat small{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.06em}
+.layout{display:grid;grid-template-columns:280px minmax(0,1fr);gap:24px;align-items:start}
+@media (max-width:900px){.layout{grid-template-columns:minmax(0,1fr)}}
+.rail{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:18px;display:flex;flex-direction:column;gap:16px;position:sticky;top:env(safe-area-inset-top,0px)}
+@media (max-width:900px){.rail{position:static}}
+.rail h2{font:700 15px var(--f-display);margin:0;text-transform:uppercase;letter-spacing:.07em;color:var(--muted)}
+label.f{display:flex;flex-direction:column;gap:6px;font-size:13px;color:var(--muted);font-weight:500}
+label.f .row{display:flex;justify-content:space-between;align-items:baseline}
+label.f output{font:500 15px var(--f-mono);color:var(--ink)}
+input[type=text],select{background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:8px 10px;color:var(--ink);width:100%}
+input[type=range]{width:100%;accent-color:var(--accent)}
+.stepper{display:flex;align-items:center;gap:10px}
+.stepper button{width:34px;height:34px;border-radius:6px;border:1px solid var(--line);background:var(--bg);font-size:18px;line-height:1}
+.stepper output{font:500 18px var(--f-mono);min-width:2ch;text-align:center;color:var(--ink)}
+.btn{background:var(--accent);color:var(--accent-ink);border:0;border-radius:6px;padding:11px 14px;font-weight:600}
+.btn:hover{filter:brightness(1.07)}
+.btn.ghost{background:transparent;color:var(--ink);border:1px solid var(--line)}
+.hint{font-size:12.5px;color:var(--muted);margin:0}
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin-bottom:16px}
+.tab{background:none;border:0;padding:10px 14px;font-weight:600;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-1px}
+.tab[aria-selected=true]{color:var(--ink);border-color:var(--accent)}
+.week{container-type:inline-size;display:flex;flex-direction:column;gap:12px}
+.day{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:12px;display:grid;gap:10px;grid-template-columns:minmax(0,1fr)}
+.dayhead{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.dayname{font:700 18px var(--f-display)}
+.slots{display:grid;gap:8px;grid-template-columns:minmax(0,1fr)}
+@container (min-width:640px){
+  .day{grid-template-columns:72px minmax(0,1fr)}
+  .dayhead{flex-direction:column;justify-content:flex-start}
+  .slots{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .totals{grid-column:2}
+}
+.slot{border:1px solid var(--line);border-radius:8px;padding:10px;display:flex;flex-direction:column;gap:6px;min-width:0;background:var(--bg)}
+.slot.locked{border-color:var(--accent);background:var(--accent-soft)}
+.slot .meal{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:600;display:flex;justify-content:space-between}
+.slot .name{font-weight:600;line-height:1.25;overflow-wrap:anywhere}
+.slot .meta{font:400 12px var(--f-mono);color:var(--muted);font-variant-numeric:tabular-nums}
+.slot .acts{display:flex;gap:6px;margin-top:auto}
+.mini{border:1px solid var(--line);background:var(--surface);border-radius:5px;padding:4px 9px;font-size:12.5px;font-weight:500}
+.mini[aria-pressed=true]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.tags{display:flex;gap:4px;flex-wrap:wrap}
+.tag{font-size:10.5px;font-weight:600;padding:1px 6px;border-radius:99px;background:var(--accent-soft);color:var(--accent)}
+.totals{display:flex;align-items:center;gap:12px;font:400 12.5px var(--f-mono);color:var(--muted);flex-wrap:wrap}
+.bar{flex:1 1 140px;height:8px;border-radius:99px;background:var(--line);overflow:hidden;min-width:100px}
+.bar i{display:block;height:100%;background:var(--accent);border-radius:99px}
+.bar.over i{background:var(--warm)}
+.empty{padding:28px;border:1px dashed var(--line);border-radius:10px;color:var(--muted);text-align:center}
+.aisle{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin-bottom:12px}
+.aisle h3{font:700 15px var(--f-display);margin:0 0 8px;display:flex;justify-content:space-between}
+.aisle ul{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:2px 20px}
+.aisle li label{display:flex;gap:10px;align-items:center;padding:6px 0;cursor:pointer}
+.aisle li input{accent-color:var(--accent);width:17px;height:17px}
+.aisle li .q{margin-left:auto;font:400 13px var(--f-mono);color:var(--muted);white-space:nowrap}
+.aisle li.done span.n{text-decoration:line-through;color:var(--muted)}
+.gtools{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+.gtools .hint{margin-left:auto}
+.overlay{position:fixed;inset:0;background:rgba(8,18,14,.55);display:flex;align-items:center;justify-content:center;padding:max(16px,env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) max(16px,env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));z-index:10}
+.picker{background:var(--surface);border:1px solid var(--line);border-radius:12px;width:min(560px,100%);max-height:100%;display:flex;flex-direction:column}
+.picker header{padding:14px 16px;margin:0;border-bottom:1px solid var(--line);align-items:center}
+.picker h2{font:700 18px var(--f-display);margin:0}
+.picker ul{list-style:none;margin:0;padding:6px;overflow:auto}
+.picker li button{width:100%;text-align:left;background:none;border:0;border-radius:8px;padding:10px;display:flex;justify-content:space-between;gap:12px;align-items:center}
+.picker li button:hover{background:var(--accent-soft)}
+.picker li .m{font:400 12px var(--f-mono);color:var(--muted);white-space:nowrap}
+.picker li.cur button{background:var(--accent-soft)}
+.rbody{padding:4px 18px 18px;overflow:auto}
+.rbody h3{font:700 14px var(--f-display);text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin:16px 0 6px}
+.rbody ul.ing{list-style:none;margin:0;padding:0}
+.rbody ul.ing li{display:flex;justify-content:space-between;gap:12px;padding:5px 0;border-bottom:1px solid var(--line)}
+.rbody .m{font:400 13px var(--f-mono);color:var(--muted)}
+.rbody ol{margin:0;padding-left:20px;display:grid;gap:8px}
+@media (prefers-reduced-motion:no-preference){.slot,.mini,.btn{transition:background .15s,border-color .15s}}
+</style>
+
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Fork<span>cast</span></h1>
+      <p class="sub">A week of meals matched to your calories, diet and headcount.</p>
+    </div>
+    <div class="stats" id="stats"></div>
+  </header>
+
+  <div class="layout">
+    <aside class="rail">
+      <h2>Your week</h2>
+      <label class="f" for="kcal"><span class="row">Daily calories <output id="kcalOut"></output></span>
+        <input type="range" id="kcal" min="1200" max="3200" step="50"></label>
+      <div class="f" style="display:flex;flex-direction:column;gap:6px;font-size:13px;color:var(--muted);font-weight:500">
+        <span id="peopleLbl">People eating</span>
+        <div class="stepper" role="group" aria-labelledby="peopleLbl">
+          <button id="pMinus" aria-label="Fewer people">−</button><output id="people"></output><button id="pPlus" aria-label="More people">+</button>
+        </div>
+      </div>
+      <label class="f" for="diet">Diet
+        <select id="diet">
+          <option value="any">No restrictions</option>
+          <option value="vegetarian">Vegetarian</option>
+          <option value="vegan">Vegan</option>
+          <option value="gf">Gluten-free</option>
+          <option value="df">Dairy-free</option>
+        </select></label>
+      <label class="f" for="bfast">Breakfast
+        <select id="bfast">
+          <option value="rs">Roti sabji (Maharashtrian)</option>
+          <option value="any">Any breakfast</option>
+        </select></label>
+      <label class="f" for="exclude">Leave out ingredients
+        <input type="text" id="exclude" placeholder="e.g. mushroom, peanut, shrimp"></label>
+      <button class="btn" id="gen">Generate week</button>
+      <p class="hint">Locked meals stay put. Portions per day scale between 0.75× and 1.4× to land near your target.</p>
+    </aside>
+
+    <main>
+      <div class="tabs" role="tablist">
+        <button class="tab" role="tab" id="tabPlan" aria-selected="true" aria-controls="viewPlan">Meal plan</button>
+        <button class="tab" role="tab" id="tabShop" aria-selected="false" aria-controls="viewShop">Groceries <span id="shopCount"></span></button>
+      </div>
+      <section id="viewPlan" role="tabpanel" aria-labelledby="tabPlan"><div class="week" id="week"></div></section>
+      <section id="viewShop" role="tabpanel" aria-labelledby="tabShop" hidden></section>
+    </main>
+  </div>
+</div>
+<div id="pickerHost"></div>
+
+<script>
+(function(){
+// name: [unit, aisle]
+var ING={
+ cabbage:['g','Produce'],potato:['g','Produce'],methi:['g','Produce'],cauliflower:['g','Produce'],'bottle gourd':['g','Produce'],'green chilli':['pc','Produce'],'coriander leaves':['g','Produce'],
+ peanuts:['g','Pantry'],atta:['g','Pantry'],besan:['g','Pantry'],'chana dal':['g','Pantry'],'toor dal':['g','Pantry'],'moong dal':['g','Pantry'],oil:['ml','Pantry'],'mustard seeds':['g','Pantry'],turmeric:['g','Pantry'],'goda masala':['g','Pantry'],'red chilli powder':['g','Pantry'],
+ oats:['g','Pantry'],milk:['ml','Dairy'],'almond milk':['ml','Pantry'],banana:['pc','Produce'],berries:['g','Produce'],
+ 'greek yogurt':['g','Dairy'],granola:['g','Pantry'],avocado:['pc','Produce'],
+ spinach:['g','Produce'],tomato:['pc','Produce'],feta:['g','Dairy'],'chia seeds':['g','Pantry'],'peanut butter':['g','Pantry'],
+ tofu:['g','Produce'],chickpeas:['g','Pantry'],rice:['g','Pantry'],'chicken breast':['g','Meat & fish'],salmon:['g','Meat & fish'],
+ quinoa:['g','Pantry'],lentils:['g','Pantry'],'black beans':['g','Pantry'],cheese:['g','Dairy'],
+ 'bell pepper':['pc','Produce'],onion:['pc','Produce'],broccoli:['g','Produce'],'sweet potato':['g','Produce'],cucumber:['pc','Produce'],
+ 'olive oil':['ml','Pantry'],'coconut milk':['ml','Pantry'],'curry powder':['g','Pantry'],
+ 'canned tomatoes':['g','Pantry'],garlic:['clove','Produce'],zucchini:['pc','Produce'],mushrooms:['g','Produce'],
+ tuna:['g','Pantry'],'turkey mince':['g','Meat & fish'],'beef mince':['g','Meat & fish'],shrimp:['g','Meat & fish'],
+ carrot:['pc','Produce'],'mixed greens':['g','Produce'],lemon:['pc','Produce']
+};
+var AISLES=['Produce','Dairy','Pantry'];
+var MEALS=['Breakfast','Lunch','Dinner'], SHARE=[.25,.35,.4];
+var DAYS=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+// id, meal, name, kcal, protein, minutes, tags (v vegetarian, vg vegan, gf, df), ingredients per serving
+var R=[
+ [1,0,'Vegan overnight oats',330,10,5,'vg v df',[['oats',50],['almond milk',150],['berries',80],['chia seeds',10]],'Stir oats, almond milk and chia seeds together in a jar.|Cover and chill overnight, or at least 4 hours.|Top with berries and serve cold.'],
+ [2,0,'Greek yogurt parfait',340,20,5,'v',[['greek yogurt',180],['granola',40],['berries',80]],'Spoon half the yogurt into a glass.|Add berries and half the granola.|Repeat the layers and serve straight away.'],
+ [3,0,'Chia berry yogurt bowl',300,16,5,'v gf',[['greek yogurt',150],['chia seeds',15],['berries',80],['banana',.5]],'Stir the chia seeds into the yogurt and rest for 5 minutes.|Slice the banana.|Top the bowl with banana and berries.'],
+ [4,0,'Banana oat porridge',400,14,10,'v',[['oats',60],['milk',250],['banana',1],['berries',40]],'Simmer the oats in the milk for 5 minutes, stirring often.|Slice in half the banana and stir through.|Top with the rest of the banana and berries.'],
+ [5,0,'Peanut butter banana smoothie',430,18,5,'v',[['banana',1],['milk',250],['peanut butter',20],['oats',30]],'Put everything in a blender.|Blend for 1 minute until smooth.|Pour and drink right away.'],
+ [6,0,'Tofu scramble',280,20,15,'vg v gf df',[['tofu',150],['spinach',40],['bell pepper',.5],['onion',.25],['olive oil',5]],'Fry the diced onion and pepper in oil for 4 minutes.|Crumble in the tofu with a pinch of turmeric, salt and pepper. Cook for 5 minutes.|Fold in the spinach until wilted.'],
+ [7,0,'Coconut chia pudding',360,9,5,'vg v gf df',[['chia seeds',30],['coconut milk',150],['berries',80]],'Whisk chia seeds into the coconut milk.|Rest for 10 minutes, whisk again, then chill for 2 hours or overnight.|Top with berries.'],
+ [8,0,'Savory spinach feta oats',380,15,10,'v',[['oats',60],['spinach',40],['feta',30],['tomato',1],['olive oil',5]],'Simmer the oats in 250 ml water with a pinch of salt for 5 minutes.|Wilt the spinach and chopped tomato in the oil.|Stir into the oats and crumble the feta on top.'],
+ [10,1,'Chickpea cucumber salad',400,16,10,'vg v gf df',[['chickpeas',120],['cucumber',1],['tomato',1],['mixed greens',40],['olive oil',10],['lemon',.5]],'Drain and rinse the chickpeas.|Chop the cucumber and tomato and toss with the chickpeas and greens.|Dress with oil, lemon juice, salt and pepper.'],
+ [12,1,'Red lentil soup',390,21,30,'vg v gf df',[['lentils',80],['carrot',1],['onion',.5],['canned tomatoes',100],['garlic',1]],'Soften the chopped onion, carrot and garlic in a pot for 5 minutes.|Add lentils, tomatoes and 500 ml water. Simmer for 20 minutes.|Blend half the soup for a thicker texture. Season to taste.'],
+ [13,1,'Black bean rice bowl',520,22,20,'v gf',[['black beans',100],['rice',70],['cheese',30],['bell pepper',.5],['tomato',1]],'Cook the rice according to the pack.|Warm the drained beans with the chopped pepper for 4 minutes.|Serve over the rice with diced tomato and grated cheese.'],
+ [16,1,'Chickpea quinoa veggie plate',450,17,20,'vg v gf df',[['chickpeas',80],['quinoa',50],['cucumber',1],['carrot',1],['bell pepper',1],['olive oil',5]],'Simmer the quinoa in double its volume of water for 12 minutes.|Slice the vegetables and drain the chickpeas.|Plate everything together and drizzle with oil, salt and pepper.'],
+ [29,1,'Veggie quinoa bowl with feta',520,20,20,'v gf',[['quinoa',60],['chickpeas',80],['cucumber',.5],['tomato',1],['feta',30],['olive oil',10],['mixed greens',30]],'Cook the quinoa in double its volume of water for 12 minutes and cool slightly.|Mix with chickpeas, chopped cucumber, tomato and greens.|Crumble the feta on top and drizzle with oil.'],
+ [30,1,'Cheesy spinach rice bowl',470,20,20,'v gf',[['rice',70],['spinach',60],['cheese',60],['onion',.25]],'Cook the rice according to the pack.|Fry the diced onion for 3 minutes, add the spinach and cook until wilted.|Stir in the rice and cheese until melted.'],
+ [31,1,'Sweet potato black bean bowl',540,17,30,'vg v gf df',[['sweet potato',200],['black beans',100],['avocado',.5],['rice',40]],'Cube the sweet potato and roast at 200°C for 25 minutes.|Cook the rice and warm the drained beans.|Assemble the bowl and top with sliced avocado.'],
+ [19,2,'Chickpea coconut curry',600,19,30,'vg v gf df',[['chickpeas',120],['coconut milk',100],['curry powder',5],['canned tomatoes',100],['rice',70],['spinach',50]],'Toast the curry powder in a dry pot for 30 seconds.|Add the tomatoes, coconut milk and chickpeas. Simmer for 15 minutes.|Stir in the spinach and serve over cooked rice.'],
+ [22,2,'Mushroom rice bake',520,15,40,'v gf',[['rice',80],['mushrooms',150],['onion',.5],['cheese',30],['olive oil',10]],'Fry the sliced mushrooms and onion in oil until golden, about 8 minutes.|Stir in the rice and 200 ml hot water. Tip into a baking dish.|Top with cheese and bake at 190°C for 25 minutes.'],
+ [25,2,'Quinoa stuffed peppers',490,24,45,'v gf',[['bell pepper',2],['quinoa',60],['black beans',80],['cheese',30]],'Cook the quinoa. Halve and deseed the peppers.|Mix the quinoa with the beans and half the cheese. Fill the peppers.|Top with the remaining cheese and bake at 190°C for 25 minutes.'],
+ [28,2,'Tofu veggie fried rice',520,22,20,'vg v gf df',[['rice',90],['tofu',100],['carrot',1],['olive oil',10],['broccoli',60]],'Cook the rice ahead and let it cool.|Fry the cubed tofu in oil until golden, then add the diced carrot and broccoli for 5 minutes.|Stir in the rice and heat through. Season with salt and pepper.'],
+ [33,2,'Chickpea and zucchini tray bake',480,17,35,'vg v gf df',[['zucchini',2],['chickpeas',120],['bell pepper',1],['sweet potato',150],['olive oil',10]],'Chop all the vegetables into chunks and toss with the chickpeas and oil on a tray.|Season with salt and pepper.|Roast at 200°C for 30 minutes, turning once.'],
+ [40,0,'Kobi chi bhaji with roti',360,10,25,'vg v df mh sp',[['cabbage',150],['onion',.25],['green chilli',1],['peanuts',15],['oil',10],['mustard seeds',2],['turmeric',1],['goda masala',3],['atta',60]],'Knead the atta with water and a pinch of salt. Rest 15 minutes.|Heat the oil, crackle the mustard seeds, then add chopped green chilli, onion and turmeric.|Add the shredded cabbage, peanuts and goda masala. Cook covered on low heat for 10 minutes until soft, stirring now and then.|Roll the dough into rotis and cook on a hot tawa until they puff. Serve with the bhaji.'],
+ [41,0,'Batata bhaji with roti',440,10,25,'vg v df mh sp',[['potato',200],['green chilli',1],['oil',10],['mustard seeds',2],['turmeric',1],['coriander leaves',10],['atta',60]],'Boil the potatoes, peel and break into chunks. Knead the atta dough and rest it.|Crackle the mustard seeds in the oil, add chilli and turmeric.|Add the potatoes, salt and a splash of water. Mash lightly and cook for 5 minutes. Finish with coriander.|Roll and cook the rotis on a hot tawa. Serve hot.'],
+ [42,0,'Palak bhaji with roti',340,13,20,'vg v df mh sp',[['spinach',200],['garlic',3],['onion',.25],['besan',15],['green chilli',1],['oil',10],['atta',60]],'Knead the atta dough and rest it. Wash and chop the spinach.|Heat the oil, fry the crushed garlic, chilli and onion until golden.|Add the spinach and cook 5 minutes. Sprinkle in the besan and stir for 3 minutes until it thickens.|Make the rotis on a hot tawa and serve with the bhaji.'],
+ [43,0,'Methi bhaji with roti',350,12,25,'vg v df mh sp',[['methi',150],['garlic',3],['onion',.5],['besan',15],['green chilli',1],['oil',10],['atta',60]],'Knead the atta dough and rest it. Pick and wash the methi leaves, then chop.|Heat the oil, fry the garlic, chilli and onion until soft.|Add the methi, salt and a splash of water. Cook covered 8 minutes. Stir in the besan and cook 3 minutes more.|Cook the rotis on a hot tawa. Serve.'],
+ [44,0,'Phoolkobi batata rassa with roti',420,11,30,'vg v df mh sp',[['cauliflower',150],['potato',100],['tomato',1],['onion',.25],['garlic',2],['goda masala',3],['turmeric',1],['oil',10],['atta',60]],'Knead the atta dough and rest it. Cut the cauliflower into florets and the potato into cubes.|Fry the onion and garlic in oil, add the chopped tomato, turmeric and goda masala until soft.|Add the cauliflower, potato, salt and 150 ml water. Cover and simmer 15 minutes until tender.|Cook the rotis on a hot tawa and serve with the rassa.'],
+ [45,0,'Dudhi bhaji with roti',330,9,25,'vg v df mh sp',[['bottle gourd',200],['tomato',1],['garlic',2],['green chilli',1],['mustard seeds',2],['goda masala',2],['oil',10],['atta',60]],'Knead the atta dough and rest it. Peel and dice the dudhi (bottle gourd).|Crackle the mustard seeds in oil, add garlic and chilli, then the chopped tomato.|Add the dudhi, goda masala and salt. Cover and cook 12 minutes without extra water; it releases its own.|Make the rotis on a hot tawa and serve.'],
+ [46,0,'Tomato bhaji with roti',400,12,20,'vg v df mh sp',[['tomato',3],['peanuts',20],['garlic',3],['green chilli',1],['coriander leaves',10],['oil',10],['atta',60]],'Knead the atta dough and rest it. Roast the peanuts and crush them coarsely.|Heat the oil, fry the garlic and chilli, then add the chopped tomatoes with salt.|Cook 8 minutes until pulpy, stir in the peanuts and coriander.|Cook the rotis on a hot tawa and serve.'],
+ [47,0,'Lasun palak batata with roti',400,11,25,'vg v df mh sp',[['potato',100],['spinach',100],['garlic',4],['red chilli powder',2],['oil',10],['atta',60]],'Knead the atta dough and rest it. Boil and cube the potato.|Fry the crushed garlic in oil until golden, add the chilli powder.|Add the spinach and potato with salt. Cook 6 minutes.|Cook the rotis on a hot tawa and serve.'],
+ [48,1,'Dudhi chana dal sabji with roti',430,17,35,'vg v df mh sp',[['bottle gourd',150],['chana dal',40],['tomato',1],['garlic',2],['goda masala',2],['oil',10],['atta',60]],'Soak the chana dal for 30 minutes and knead the atta dough.|Fry garlic in oil, add the tomato, then the dal and dudhi with goda masala, salt and 100 ml water.|Cover and cook 20 minutes until the dal is soft.|Serve with freshly made rotis.'],
+ [49,1,'Kobi batata bhaji with roti',440,11,30,'vg v df mh sp',[['cabbage',100],['potato',100],['green chilli',1],['mustard seeds',2],['turmeric',1],['oil',10],['atta',60]],'Knead the atta dough and rest it. Dice the potato and shred the cabbage.|Crackle the mustard seeds in oil, add chilli, turmeric and the potato with a splash of water. Cook covered 8 minutes.|Add the cabbage and salt, cook 7 minutes more.|Cook the rotis on a hot tawa and serve.'],
+ [50,2,'Tomato batata rassa with roti',450,11,30,'vg v df mh sp',[['tomato',2],['potato',150],['onion',.5],['garlic',2],['goda masala',3],['turmeric',1],['oil',10],['atta',60]],'Knead the atta dough and rest it.|Fry the onion and garlic in oil, add the chopped tomato, turmeric and goda masala until soft.|Add the cubed potato, salt and 200 ml water. Simmer 15 minutes until the potato is tender.|Serve the rassa with hot rotis.'],
+ [51,2,'Phoolkobi methi sabji with roti',400,12,30,'vg v df mh sp',[['cauliflower',150],['methi',60],['garlic',3],['onion',.25],['green chilli',1],['oil',10],['atta',60]],'Knead the atta dough and rest it.|Fry garlic, chilli and onion in oil, then add the cauliflower florets with salt and turmeric. Cover and cook 10 minutes.|Add the chopped methi and cook 5 minutes more.|Cook the rotis on a hot tawa and serve.'],
+ [52,2,'Varan bhaat',480,18,35,'vg v gf df mh',[['toor dal',60],['rice',80],['turmeric',1],['oil',5],['garlic',2]],'Wash the dal and pressure-cook with turmeric and 300 ml water for 3 whistles. Mash smooth.|Season with salt and a tadka of garlic fried in oil.|Cook the rice and serve with the varan on top.'],
+ [53,2,'Moong dal khichdi',470,19,35,'vg v gf df',[['moong dal',50],['rice',60],['carrot',1],['turmeric',1],['garlic',2],['oil',5]],'Wash the dal and rice together.|Fry the garlic in oil, add the diced carrot, turmeric, dal, rice, salt and 450 ml water.|Pressure-cook for 3 whistles. Mash lightly and serve hot.']
+].map(function(a){return {id:a[0],meal:a[1],name:a[2],kcal:a[3],pro:a[4],min:a[5],tags:a[6].split(' '),ing:a[7],steps:a[8].split('|')}});
+var BYID={};R.forEach(function(r){BYID[r.id]=r});
+
+var KEY='forkcast.v6';
+var S=load()||{kcal:2000,people:2,diet:'vegetarian',bfast:'rs',exclude:'',plan:blank(),locked:blank(0),scale:DAYS.map(function(){return 1}),checked:{}};
+function blank(v){return DAYS.map(function(){return [v===undefined?null:v,v===undefined?null:v,v===undefined?null:v]})}
+function load(){try{var j=localStorage.getItem(KEY);return j?JSON.parse(j):null}catch(e){return null}}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
+
+function terms(){return S.exclude.toLowerCase().split(',').map(function(t){return t.trim()}).filter(Boolean)}
+function ok(r){
+  var d=S.diet;
+  if(r.meal===0&&S.bfast==='rs'&&r.tags.indexOf('mh')<0)return false;
+  if(d==='vegan'&&r.tags.indexOf('vg')<0)return false;
+  if(d==='vegetarian'&&r.tags.indexOf('v')<0)return false;
+  if(d==='gf'&&r.tags.indexOf('gf')<0)return false;
+  if(d==='df'&&r.tags.indexOf('df')<0)return false;
+  var t=terms();
+  return !r.ing.some(function(i){return t.some(function(x){return i[0].indexOf(x)>=0})});
+}
+function pool(m){return R.filter(function(r){return r.meal===m&&ok(r)})}
+function rnd(a){return a[Math.floor(Math.random()*a.length)]}
+function clamp(x,a,b){return Math.max(a,Math.min(b,x))}
+function dayBase(d){var k=0,p=0,full=true;S.plan[d].forEach(function(id){if(id==null){full=false;return}k+=BYID[id].kcal;p+=BYID[id].pro});return {k:k,p:p,full:full}}
+function rescale(d){var b=dayBase(d);S.scale[d]=b.full&&b.k?Math.round(clamp(S.kcal/b.k,.75,1.4)*20)/20:1}
+
+function usage(){var u={};S.plan.forEach(function(row){row.forEach(function(id){if(id!=null)u[id]=(u[id]||0)+1})});return u}
+function generate(){
+  for(var d=0;d<7;d++)for(var m=0;m<3;m++){
+    var id=S.plan[d][m];
+    if(id!=null&&(!S.locked[d][m]||!ok(BYID[id])))S.plan[d][m]=null,S.locked[d][m]=0;
+  }
+  var pools=[pool(0),pool(1),pool(2)];
+  if(pools.some(function(p){return !p.length}))return false;
+  for(var d=0;d<7;d++){
+    var u=usage(),best=null,bs=1e9;
+    for(var t=0;t<80;t++){
+      var pick=[],sum=0,pen=0;
+      for(var m=0;m<3;m++){
+        var id=S.plan[d][m];
+        if(id==null){var r=rnd(pools[m]);id=r.id;pen+=(u[id]||0)*70;if(pick.indexOf(id)>=0)pen+=999}
+        pick.push(id);sum+=BYID[id].kcal;
+      }
+      var sc=Math.abs(sum*clamp(S.kcal/sum,.75,1.4)-S.kcal)+pen+Math.abs(sum-S.kcal)*.15;
+      if(sc<bs){bs=sc;best=pick}
+    }
+    for(var m=0;m<3;m++)S.plan[d][m]=best[m];
+    rescale(d);
+  }
+  return true;
+}
+
+var $=function(id){return document.getElementById(id)};
+function fmtQty(q,u){
+  if(u==='g'||u==='ml')return (q>=1000?(Math.round(q/100)/10)+(u==='g'?' kg':' L'):Math.max(5,Math.round(q/5)*5)+' '+u);
+  var v=Math.ceil(q*2-1e-9)/2;return v+' '+u+(u==='clove'||u==='slice'?(v===1?'':'s'):'');
+}
+function groceries(){
+  var g={};
+  for(var d=0;d<7;d++)S.plan[d].forEach(function(id){
+    if(id==null)return;
+    BYID[id].ing.forEach(function(i){g[i[0]]=(g[i[0]]||0)+i[1]*S.people*S.scale[d]});
+  });
+  return g;
+}
+
+function render(){
+  $('kcal').value=S.kcal;$('kcalOut').textContent=S.kcal.toLocaleString()+' kcal';
+  $('people').textContent=S.people;$('diet').value=S.diet;$('bfast').value=S.bfast;
+  if($('exclude').value!==S.exclude)$('exclude').value=S.exclude;
+  renderWeek();renderShop();renderStats();save();
+}
+function renderStats(){
+  var k=0,p=0,n=0,min=0,ids={};
+  for(var d=0;d<7;d++){var b=dayBase(d);if(b.full){n++;k+=b.k*S.scale[d];p+=b.p*S.scale[d]}S.plan[d].forEach(function(id){if(id!=null){ids[id]=1;min+=BYID[id].min}})}
+  var items=[[n?Math.round(k/n).toLocaleString():'–','kcal / day'],[n?Math.round(p/n)+' g':'–','protein / day'],[Object.keys(ids).length,'different meals'],[Math.round(min/60*10)/10+' h','cooking, per week']];
+  $('stats').innerHTML=items.map(function(i){return '<div class="stat"><b>'+i[0]+'</b><small>'+i[1]+'</small></div>'}).join('');
+}
+function renderWeek(){
+  var bad=[0,1,2].filter(function(m){return !pool(m).length});
+  if(bad.length){
+    $('week').innerHTML='<div class="empty">No '+bad.map(function(m){return MEALS[m].toLowerCase()}).join(' or ')+' recipes match this diet and ingredient list. Relax a filter to continue.</div>';return;
+  }
+  var any=S.plan.some(function(r){return r.some(function(x){return x!=null})});
+  if(!any){$('week').innerHTML='<div class="empty">Nothing planned yet. Press Generate week.</div>';return}
+  $('week').innerHTML=DAYS.map(function(dn,d){
+    var b=dayBase(d),sc=S.scale[d],kc=Math.round(b.k*sc),pc=Math.round(b.p*sc),pct=Math.min(100,Math.round(kc/S.kcal*100));
+    var slots=MEALS.map(function(mn,m){
+      var id=S.plan[d][m],r=id!=null?BYID[id]:null,lk=S.locked[d][m];
+      if(!r)return '<div class="slot"><div class="meal">'+mn+'</div><div class="name" style="color:var(--muted)">Empty</div><div class="acts"><button class="mini" data-swap="'+d+','+m+'">Choose</button></div></div>';
+      return '<div class="slot'+(lk?' locked':'')+'"><div class="meal"><span>'+mn+'</span><span>'+r.min+' min</span></div>'+
+        '<div class="name">'+r.name+'</div>'+
+        '<div class="meta">'+Math.round(r.kcal*sc)+' kcal · '+Math.round(r.pro*sc)+' g protein</div>'+
+        '<div class="tags">'+r.tags.filter(function(t){return t!=='v'||r.tags.indexOf('vg')<0}).map(function(t){return '<span class="tag">'+({v:'vegetarian',vg:'vegan',gf:'gluten-free',df:'dairy-free',mh:'Maharashtrian',sp:'medium spicy'})[t]+'</span>'}).join('')+'</div>'+
+        '<div class="acts"><button class="mini" data-recipe="'+d+','+m+'">Recipe</button><button class="mini" data-swap="'+d+','+m+'">Swap</button><button class="mini" aria-pressed="'+(lk?'true':'false')+'" data-lock="'+d+','+m+'">'+(lk?'Locked':'Lock')+'</button></div></div>';
+    }).join('');
+    return '<article class="day"><div class="dayhead"><span class="dayname">'+dn+'</span></div><div class="slots">'+slots+'</div>'+
+      '<div class="totals"><span>'+kc.toLocaleString()+' / '+S.kcal.toLocaleString()+' kcal</span><div class="bar'+(kc>S.kcal*1.05?' over':'')+'"><i style="width:'+pct+'%"></i></div><span>'+pc+' g protein</span><span>portions ×'+sc.toFixed(2)+'</span></div></article>';
+  }).join('');
+}
+function renderShop(){
+  var g=groceries(),names=Object.keys(g),left=names.filter(function(n){return !S.checked[n]}).length;
+  $('shopCount').textContent=names.length?'('+left+')':'';
+  if(!names.length){$('viewShop').innerHTML='<div class="empty">Plan some meals and the shopping list builds itself.</div>';return}
+  var html='<div class="gtools"><button class="btn ghost" id="copy">Copy list</button><button class="btn ghost" id="uncheck">Clear ticks</button><p class="hint">Quantities for '+S.people+' '+(S.people===1?'person':'people')+', scaled to each day\'s portions.</p></div>';
+  AISLES.forEach(function(a){
+    var items=names.filter(function(n){return ING[n][1]===a}).sort();
+    if(!items.length)return;
+    html+='<div class="aisle"><h3><span>'+a+'</span><small style="font:400 12px var(--f-mono);color:var(--muted)">'+items.length+'</small></h3><ul>'+items.map(function(n){
+      return '<li class="'+(S.checked[n]?'done':'')+'"><label><input type="checkbox" data-chk="'+n+'"'+(S.checked[n]?' checked':'')+'><span class="n">'+n.charAt(0).toUpperCase()+n.slice(1)+'</span><span class="q">'+fmtQty(g[n],ING[n][0])+'</span></label></li>';
+    }).join('')+'</ul></div>';
+  });
+  $('viewShop').innerHTML=html;
+}
+function listText(){
+  var g=groceries(),out=[];
+  AISLES.forEach(function(a){
+    var items=Object.keys(g).filter(function(n){return ING[n][1]===a&&!S.checked[n]}).sort();
+    if(items.length)out.push(a.toUpperCase()),items.forEach(function(n){out.push('- '+n+': '+fmtQty(g[n],ING[n][0]))}),out.push('');
+  });
+  return out.join('\n');
+}
+
+function openRecipe(d,m){
+  var r=BYID[S.plan[d][m]],sc=S.scale[d],n=S.people;
+  $('pickerHost').innerHTML='<div class="overlay" id="ov"><div class="picker" role="dialog" aria-modal="true" aria-labelledby="pt"><header><h2 id="pt">'+r.name+'</h2><button class="mini" id="pclose">Close</button></header><div class="rbody">'+
+    '<p class="hint">'+r.min+' min · makes '+n+' '+(n===1?'serving':'servings')+' · '+Math.round(r.kcal*sc)+' kcal each</p>'+
+    '<h3>Ingredients</h3><ul class="ing">'+r.ing.map(function(i){return '<li><span>'+i[0].charAt(0).toUpperCase()+i[0].slice(1)+'</span><span class="m">'+fmtQty(i[1]*n*sc,ING[i[0]][0])+'</span></li>'}).join('')+'</ul>'+
+    '<h3>Method</h3><ol>'+r.steps.map(function(t){return '<li>'+t+'</li>'}).join('')+'</ol></div></div></div>';
+  var ov=$('ov');
+  function close(){$('pickerHost').innerHTML='';document.removeEventListener('keydown',esc)}
+  function esc(e){if(e.key==='Escape')close()}
+  document.addEventListener('keydown',esc);
+  ov.addEventListener('click',function(e){if(e.target===ov||e.target.id==='pclose')close()});
+  ov.querySelector('button').focus();
+}
+function openPicker(d,m){
+  var cur=S.plan[d][m],list=pool(m);
+  $('pickerHost').innerHTML='<div class="overlay" id="ov"><div class="picker" role="dialog" aria-modal="true" aria-labelledby="pt"><header><h2 id="pt">'+DAYS[d]+' '+MEALS[m].toLowerCase()+'</h2><button class="mini" id="pclose">Close</button></header><ul>'+
+    list.map(function(r){return '<li class="'+(r.id===cur?'cur':'')+'"><button data-pick="'+r.id+'"><span>'+r.name+'</span><span class="m">'+r.kcal+' kcal · '+r.pro+' g</span></button></li>'}).join('')+'</ul></div></div>';
+  var ov=$('ov');
+  function close(){$('pickerHost').innerHTML='';document.removeEventListener('keydown',esc)}
+  function esc(e){if(e.key==='Escape')close()}
+  document.addEventListener('keydown',esc);
+  ov.addEventListener('click',function(e){
+    if(e.target===ov||e.target.id==='pclose'){close();return}
+    var b=e.target.closest('[data-pick]');
+    if(b){S.plan[d][m]=+b.dataset.pick;rescale(d);close();render()}
+  });
+  var f=ov.querySelector('button');if(f)f.focus();
+}
+
+$('week').addEventListener('click',function(e){
+  var s=e.target.closest('[data-swap]'),l=e.target.closest('[data-lock]'),rc=e.target.closest('[data-recipe]'),p;
+  if(rc){p=rc.dataset.recipe.split(',');openRecipe(+p[0],+p[1])}
+  else if(s){p=s.dataset.swap.split(',');openPicker(+p[0],+p[1])}
+  else if(l){p=l.dataset.lock.split(',');S.locked[+p[0]][+p[1]]^=1;render()}
+});
+$('viewShop').addEventListener('change',function(e){
+  var n=e.target.dataset.chk;if(n){if(e.target.checked)S.checked[n]=1;else delete S.checked[n];render()}
+});
+$('viewShop').addEventListener('click',function(e){
+  if(e.target.id==='uncheck'){S.checked={};render()}
+  if(e.target.id==='copy'){
+    var b=e.target;
+    (navigator.clipboard?navigator.clipboard.writeText(listText()):Promise.reject()).then(function(){b.textContent='Copied'},function(){b.textContent='Copy not available here'});
+    setTimeout(function(){b.textContent='Copy list'},1800);
+  }
+});
+$('kcal').addEventListener('input',function(){S.kcal=+this.value;for(var d=0;d<7;d++)rescale(d);render()});
+$('pMinus').onclick=function(){S.people=Math.max(1,S.people-1);render()};
+$('pPlus').onclick=function(){S.people=Math.min(12,S.people+1);render()};
+$('bfast').addEventListener('change',function(){S.bfast=this.value;generate();render()});
+$('diet').addEventListener('change',function(){S.diet=this.value;generate();render()});
+$('exclude').addEventListener('change',function(){S.exclude=this.value;generate();render()});
+$('gen').onclick=function(){generate();render()};
+function tab(w){
+  var p=w==='plan';
+  $('tabPlan').setAttribute('aria-selected',p);$('tabShop').setAttribute('aria-selected',!p);
+  $('viewPlan').hidden=!p;$('viewShop').hidden=p;
+}
+$('tabPlan').onclick=function(){tab('plan')};$('tabShop').onclick=function(){tab('shop')};
+
+if(!S.plan.some(function(r){return r.some(function(x){return x!=null})}))generate();
+render();
+})();
+</script>
